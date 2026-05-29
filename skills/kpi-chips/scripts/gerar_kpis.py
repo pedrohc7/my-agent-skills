@@ -134,3 +134,74 @@ def calc_kpis(df: pd.DataFrame) -> dict:
         'pct_agenda':     round(pct_agenda, 1),
         '_concluded_with_dx': cwd,
     }
+
+
+def calc_transporter_kpis(df: pd.DataFrame, cwd: pd.DataFrame) -> list[dict]:
+    """Per-transporter KPIs. cwd = concluded rows with _dx column."""
+    col_transp = _col(df, 'Transportador')
+    col_tent   = _col(df, 'Tentativas')
+    col_dist   = _col(df, 'Dist')   # matches 'Distância em KM'
+
+    results = []
+    for name, grp in df.groupby(col_transp):
+        if pd.isna(name):
+            continue
+        total_t = len(grp)
+        conc_t  = cwd[cwd.index.isin(grp.index)]
+        n_conc  = len(conc_t)
+
+        def _pct(n): return round(n / total_t * 100, 1) if total_t else 0.0
+
+        d0_t = int((conc_t['_dx'] == 0).sum())
+        d1_t = int((conc_t['_dx'] == 1).sum())
+        d2_t = int((conc_t['_dx'] == 2).sum())
+        d3_t = int((conc_t['_dx'] >= 3).sum())
+        sla_t = d0_t + d1_t + d2_t
+
+        tent = grp[col_tent].fillna(0)
+        dist_vals = grp[col_dist].dropna()
+
+        results.append({
+            'nome':          str(name),
+            'total':         total_t,
+            'pct_conclusao': _pct(n_conc),
+            'pct_sla':       _pct(sla_t),
+            'pct_d0':        _pct(d0_t),
+            'pct_d1':        _pct(d1_t),
+            'pct_d2':        _pct(d2_t),
+            'pct_d3plus':    _pct(d3_t),
+            'avg_tentativas': round(float(tent.mean()), 2) if total_t else 0.0,
+            'pct_primeira':  round(float((tent == 1).sum() / total_t * 100), 1) if total_t else 0.0,
+            'avg_dist_km':   round(float(dist_vals.mean()), 1) if len(dist_vals) else 0.0,
+        })
+
+    return sorted(results, key=lambda x: x['pct_sla'], reverse=True)
+
+
+def calc_city_kpis(df: pd.DataFrame, cwd: pd.DataFrame, min_orders: int = 10) -> list[dict]:
+    """Per-city KPIs for cities with >= min_orders."""
+    col_cidade = _col(df, 'Destino - Cidade')
+    col_tent   = _col(df, 'Tentativas')
+
+    results = []
+    for city, grp in df.groupby(col_cidade):
+        if pd.isna(city) or len(grp) < min_orders:
+            continue
+        total_c = len(grp)
+        conc_c  = cwd[cwd.index.isin(grp.index)]
+
+        def _pct(n): return round(n / total_c * 100, 1) if total_c else 0.0
+
+        d1_c  = int((conc_c['_dx'] == 1).sum())
+        sla_c = int((conc_c['_dx'] <= 2).sum())
+        tent  = grp[col_tent].fillna(0)
+
+        results.append({
+            'cidade':         str(city),
+            'total':          total_c,
+            'pct_sla':        _pct(sla_c),
+            'pct_d1':         _pct(d1_c),
+            'avg_tentativas': round(float(tent.mean()), 2) if total_c else 0.0,
+        })
+
+    return sorted(results, key=lambda x: x['total'], reverse=True)

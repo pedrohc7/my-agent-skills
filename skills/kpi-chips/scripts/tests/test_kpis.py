@@ -83,3 +83,41 @@ def test_parse_dt_formats():
     assert parse_dt('13/05/2026 15:12')    == datetime(2026, 5, 13, 15, 12, 0)
     assert parse_dt(None) is None
     assert parse_dt(float('nan')) is None
+
+
+from gerar_kpis import calc_transporter_kpis, calc_city_kpis
+
+def _full_df():
+    return pd.DataFrame([
+        {'Status': 'Concluído', 'Criado em': '12/05/2026 08:00:00',
+         'Fechado em': '13/05/2026 15:00:00', 'Tentativas': 1,
+         'Cumprimento de Agenda': 'Sim', 'Distância em KM': 25.0,
+         'Transportador': 'João', 'Destino - Cidade': 'RIO DE JANEIRO'},
+        {'Status': 'Concluído', 'Criado em': '12/05/2026 08:00:00',
+         'Fechado em': '14/05/2026 15:00:00', 'Tentativas': 2,
+         'Cumprimento de Agenda': 'Não', 'Distância em KM': 30.0,
+         'Transportador': 'Maria', 'Destino - Cidade': 'NITEROI'},
+    ])
+
+def test_calc_transporter_kpis_returns_one_row_per_transporter():
+    df = _full_df()
+    kpis = calc_kpis(df)
+    rows = calc_transporter_kpis(df, kpis['_concluded_with_dx'])
+    names = [r['nome'] for r in rows]
+    assert 'João' in names
+    assert 'Maria' in names
+
+def test_calc_transporter_kpis_joao_is_d1():
+    df = _full_df()
+    kpis = calc_kpis(df)
+    rows = calc_transporter_kpis(df, kpis['_concluded_with_dx'])
+    joao = next(r for r in rows if r['nome'] == 'João')
+    assert joao['pct_d1'] == 100.0
+    assert joao['pct_sla'] == 100.0
+
+def test_calc_city_kpis_min_10_filter():
+    df = _full_df()
+    kpis = calc_kpis(df)
+    rows = calc_city_kpis(df, kpis['_concluded_with_dx'], min_orders=1)
+    cities = [r['cidade'] for r in rows]
+    assert 'RIO DE JANEIRO' in cities
