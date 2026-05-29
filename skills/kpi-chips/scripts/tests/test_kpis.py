@@ -34,3 +34,52 @@ def test_end_before_start_returns_zero():
     start = datetime(2026, 5, 12, 15, 0)
     end   = datetime(2026, 5, 11, 8, 0)
     assert business_days_diff(start, end) == 0
+
+
+import pandas as pd
+from gerar_kpis import calc_kpis, parse_dt
+
+def _make_df(rows):
+    """Helper: create minimal orders dataframe."""
+    return pd.DataFrame(rows)
+
+def test_calc_kpis_all_d1():
+    df = _make_df([
+        {'Status': 'Concluído', 'Criado em': '12/05/2026 08:00:00',
+         'Fechado em': '13/05/2026 15:00:00', 'Tentativas': 1,
+         'Cumprimento de Agenda': 'Sim', 'Distância em KM': 25.0,
+         'Transportador': 'João', 'Destino - Cidade': 'RIO DE JANEIRO'},
+        {'Status': 'Concluído', 'Criado em': '12/05/2026 08:00:00',
+         'Fechado em': '13/05/2026 16:00:00', 'Tentativas': 1,
+         'Cumprimento de Agenda': 'Sim', 'Distância em KM': 30.0,
+         'Transportador': 'João', 'Destino - Cidade': 'RIO DE JANEIRO'},
+    ])
+    k = calc_kpis(df)
+    assert k['total'] == 2
+    assert k['n_concluded'] == 2
+    assert k['taxa_entrega'] == 100.0
+    assert k['taxa_d1'] == 100.0
+    assert k['taxa_sla'] == 100.0
+    assert k['taxa_d3plus'] == 0.0
+
+def test_calc_kpis_pa_nao_identificado_counts_as_undelivered():
+    df = _make_df([
+        {'Status': 'Concluído',          'Criado em': '12/05/2026 08:00:00',
+         'Fechado em': '13/05/2026 15:00:00', 'Tentativas': 1,
+         'Cumprimento de Agenda': 'Sim', 'Distância em KM': 25.0,
+         'Transportador': 'João', 'Destino - Cidade': 'RIO DE JANEIRO'},
+        {'Status': 'PA não Identificado', 'Criado em': '12/05/2026 08:00:00',
+         'Fechado em': None,              'Tentativas': 0,
+         'Cumprimento de Agenda': None,   'Distância em KM': None,
+         'Transportador': None,           'Destino - Cidade': 'NITEROI'},
+    ])
+    k = calc_kpis(df)
+    assert k['total'] == 2
+    assert k['taxa_entrega'] == 50.0
+    assert k['taxa_sla'] == 50.0
+
+def test_parse_dt_formats():
+    assert parse_dt('13/05/2026 15:12:04') == datetime(2026, 5, 13, 15, 12, 4)
+    assert parse_dt('13/05/2026 15:12')    == datetime(2026, 5, 13, 15, 12, 0)
+    assert parse_dt(None) is None
+    assert parse_dt(float('nan')) is None
