@@ -85,6 +85,43 @@ def test_parse_dt_formats():
     assert parse_dt(float('nan')) is None
 
 
+def test_d0_within_24h_different_calendar_day():
+    """Pedido criado segunda 22:00, fechado terça 08:00 (10h) → D+0."""
+    df = _make_df([{
+        'Status': 'Concluído', 'Criado em': '11/05/2026 22:00:00',
+        'Fechado em': '12/05/2026 08:00:00', 'Tentativas': 1,
+        'Cumprimento de Agenda': 'Sim', 'Distância em KM': 20.0,
+        'Transportador': 'João', 'Destino - Cidade': 'RIO DE JANEIRO',
+    }])
+    k = calc_kpis(df)
+    assert k['d0'] == 1
+    assert k['d1'] == 0
+
+def test_d0_exactly_24h():
+    """Fechado exatamente 24h após criação → D+0 (limite inclusivo)."""
+    df = _make_df([{
+        'Status': 'Concluído', 'Criado em': '12/05/2026 08:00:00',
+        'Fechado em': '13/05/2026 08:00:00', 'Tentativas': 1,
+        'Cumprimento de Agenda': 'Sim', 'Distância em KM': 20.0,
+        'Transportador': 'João', 'Destino - Cidade': 'RIO DE JANEIRO',
+    }])
+    k = calc_kpis(df)
+    assert k['d0'] == 1
+    assert k['d1'] == 0
+
+def test_d1_after_25h():
+    """Fechado 25h após criação → cai para business_days_diff = 1 → D+1."""
+    df = _make_df([{
+        'Status': 'Concluído', 'Criado em': '12/05/2026 08:00:00',
+        'Fechado em': '13/05/2026 09:00:00', 'Tentativas': 1,
+        'Cumprimento de Agenda': 'Sim', 'Distância em KM': 20.0,
+        'Transportador': 'João', 'Destino - Cidade': 'RIO DE JANEIRO',
+    }])
+    k = calc_kpis(df)
+    assert k['d0'] == 0
+    assert k['d1'] == 1
+
+
 from gerar_kpis import calc_transporter_kpis, calc_city_kpis
 
 def _full_df():

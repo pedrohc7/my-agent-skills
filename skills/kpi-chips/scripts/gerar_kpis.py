@@ -93,10 +93,14 @@ def calc_kpis(df: pd.DataFrame) -> dict:
     n_concluded = len(concluded)
 
     # D+X per order
+    # D+0 = fechado dentro de 24h da criação (datetime real, não datas)
+    # D+1+ = dias úteis (business_days_diff), independente do critério 24h
     def _dx(row):
         c = parse_dt(row[col_criado])
         f = parse_dt(row[col_fechado])
         if c and f:
+            if (f - c).total_seconds() <= 86400:  # ≤ 24h
+                return 0
             return business_days_diff(c, f)
         return None
 
