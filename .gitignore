@@ -1,0 +1,21 @@
+# Ignora TUDO por padrão (abordagem whitelist)
+*
+
+# Arquivos de controle do repositório
+!.gitignore
+!CLAUDE.md
+!setup.ps1
+
+# Skills customizadas (criadas pelo usuário, ficam na raiz do repo)
+!skills/
+!skills/**
+
+# Lock file com lista de skills de terceiros instaladas
+!.agents/
+.agents/*
+!.agents/.skill-lock.json
+
+# Apenas settings.json global (não o local, que tem caminhos específicos da máquina)
+!.claude/
+.claude/*
+!.claude/settings.json
