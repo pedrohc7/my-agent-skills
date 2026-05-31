@@ -10,6 +10,14 @@
 !skills/
 !skills/**
 
+# Agentes sub-Claude customizados
+!agents/
+!agents/**
+
+# Comandos slash customizados
+!commands/
+!commands/**
+
 # Lock file com lista de skills de terceiros instaladas
 !.agents/
 .agents/*
